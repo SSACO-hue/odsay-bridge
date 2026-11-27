@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>G2 길안내</title>
+    <style>
+      :root {
+        --bg: #eef0f3;
+        --card: #ffffff;
+        --text: #191f28;
+        --muted: #6b7684;
+        --line: #e8ebee;
+        --soft: #f4f6f9;
+        --accent: #2f6bff;
+        --accent-soft: #e8efff;
+        --on-accent: #ffffff;
+        --danger: #e5484d;
+        --walk: #12a05c;
+        --car: #2f6bff;
+        --transit: #8a4fd8;
+        --hud-bg: #050b07;
+        --hud-text: #5dff8f;
+        --hud-dim: #2f8f52;
+        --float-shadow: 0 2px 6px rgba(15, 23, 42, 0.1), 0 8px 24px rgba(15, 23, 42, 0.12);
+      }
+      /* Always light, also when the phone is in dark mode. */
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { margin: 0; background: var(--card); overflow-x: hidden; }
+      body {
+        color: var(--text);
+        font-family: 'Pretendard Variable', 'Pretendard', system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+        font-size: 15px;
+        line-height: 1.45;
+        letter-spacing: -0.015em;
+      }
+      button, input { font: inherit; color: inherit; letter-spacing: inherit; }
+      svg { display: block; }
+      [hidden] { display: none !important; }
+
+      /* ── map ── */
+      .map-wrap { position: sticky; top: 0; height: 52vh; min-height: 300px; background: var(--bg); z-index: 0; overflow: hidden; }
+      #map { position: absolute; inset: 0; }
+      .map-fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: 90px 32px 40px; text-align: center; color: var(--muted); font-size: 14px; }
+      .map-top { position: absolute; left: 12px; right: 12px; top: max(12px, env(safe-area-inset-top)); z-index: 3; }
+      .searchbar { display: flex; align-items: center; gap: 4px; height: 52px; padding: 0 6px 0 16px; background: var(--card); border-radius: 16px; box-shadow: var(--float-shadow); }
+      .searchbar svg { flex: none; color: var(--muted); }
+      .searchbar input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font-size: 16px; font-weight: 500; padding: 0 8px; }
+      .searchbar input::placeholder { color: var(--muted); }
+      .round-btn { width: 40px; height: 40px; border: 0; border-radius: 12px; background: transparent; display: grid; place-items: center; cursor: pointer; color: var(--text); }
+      .round-btn:active { background: var(--soft); }
+
+      .banner { display: flex; align-items: center; gap: 14px; padding: 12px 16px 12px 12px; background: var(--accent); color: var(--on-accent); border-radius: 18px; box-shadow: var(--float-shadow); }
+      .banner-glyph { flex: none; width: 52px; height: 52px; border-radius: 14px; background: rgba(255, 255, 255, 0.18); display: grid; place-items: center; font-size: 26px; line-height: 1; }
+      .banner-main { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+      .banner-sub { font-size: 14px; font-weight: 600; opacity: 0.92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .banner > div:last-child { min-width: 0; }
+
+      .map-chips { position: absolute; left: 12px; bottom: 30px; z-index: 3; display: flex; gap: 6px; }
+      .chip { font-size: 12px; font-weight: 700; padding: 5px 10px 5px 21px; border-radius: 999px; background: var(--card); color: var(--muted); position: relative; box-shadow: var(--float-shadow); }
+      .chip::before { content: ''; position: absolute; left: 9px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: #b0b8c1; }
+      .chip.on { color: var(--text); }
+      .chip.on::before { background: #12a05c; }
+      .fab { position: absolute; right: 12px; bottom: 30px; z-index: 3; width: 46px; height: 46px; border: 0; border-radius: 50%; background: var(--card); color: var(--muted); box-shadow: var(--float-shadow); display: grid; place-items: center; cursor: pointer; }
+      .fab.on { color: var(--accent); }
+
+      .me-marker { width: 56px; height: 56px; position: relative; pointer-events: none; }
+      .me-dot { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
+      .me-cone { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from -32deg, var(--accent) 0 64deg, transparent 64deg); opacity: 0.38; -webkit-mask: radial-gradient(circle, transparent 8px, #000 9px); mask: radial-gradient(circle, transparent 8px, #000 9px); }
+      .dot-marker { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--accent); box-sizing: border-box; }
+      .dest-marker { width: 32px; height: 40px; display: grid; justify-items: center; align-content: end; }
+      .dest-marker i { display: block; width: 26px; height: 26px; margin-bottom: 5px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--danger); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+      .pin-marker { min-width: 26px; height: 26px; padding: 0 7px; margin-bottom: 4px; border-radius: 13px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 800; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+      .maplibregl-ctrl-attrib { font-size: 10px; }
+
+      /* ── sheet ── */
+      .sheet { position: relative; z-index: 2; margin-top: -20px; background: var(--card); border-radius: 22px 22px 0 0; padding: 8px 18px calc(28px + env(safe-area-inset-bottom)); min-height: calc(48vh + 20px); box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.08); }
+      .grabber { width: 38px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 14px; }
+      .muted { color: var(--muted); font-size: 13px; }
+      .section-head { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 6px; font-size: 16px; font-weight: 800; }
+      .section-head .count { color: var(--accent); margin-left: 4px; }
+      .text-btn { border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; padding: 6px 2px; cursor: pointer; }
+
+      .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .seg.two { grid-template-columns: repeat(2, 1fr); }
+      .seg input { position: absolute; opacity: 0; pointer-events: none; }
+      .seg label { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 0; border-radius: 14px; background: var(--soft); font-weight: 700; font-size: 14px; color: var(--muted); cursor: pointer; }
+      .seg input:checked + label { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+      #search-msg:not(:empty) { margin: 12px 2px 0; }
+
+      ul.places { list-style: none; margin: 0; padding: 0; }
+      .place { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--line); }
+      .place:first-child { border-top: 0; }
+      .place-no { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 800; display: grid; place-items: center; }
+      .place-info { flex: 1; min-width: 0; }
+      .place-name { font-weight: 700; font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .place-info .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .place-actions { display: flex; gap: 6px; flex: none; align-items: center; }
+      .empty { color: var(--muted); font-size: 14px; padding: 6px 0 2px; }
+      .cat-head { list-style: none; margin: 14px 0 2px; font-size: 12.5px; font-weight: 800; color: var(--accent); }
+      .cat-head:first-child { margin-top: 4px; }
+      .cat-head + .place { border-top: 0; }
+      .cat-select { margin-top: 5px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); background: var(--soft); border: 0; border-radius: 8px; padding: 4px 8px; max-width: 100%; }
+      .fav-marker { position: relative; width: 24px; height: 24px; border-radius: 50%; background: #ffb400; color: #fff; display: grid; place-items: center; font-size: 13px; line-height: 1; border: 2px solid #fff; box-sizing: border-box; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3); }
+      .fav-marker b { font-weight: 400; }
+      .fav-marker span { position: absolute; left: 27px; top: 2px; white-space: nowrap; font-size: 12px; font-weight: 700; color: #191f28; background: rgba(255, 255, 255, 0.92); padding: 1px 7px; border-radius: 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+      .switch-row { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 800; }
+      .switch-row input { width: 46px; height: 28px; appearance: none; -webkit-appearance: none; background: var(--line); border-radius: 14px; position: relative; transition: 0.15s; cursor: pointer; }
+      .switch-row input::after { content: ''; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: 0.15s; }
+      .switch-row input:checked { background: var(--accent); }
+      .switch-row input:checked::after { left: 21px; }
+
+      .btn { border: 0; border-radius: 12px; padding: 9px 15px; font-weight: 700; font-size: 14px; background: var(--soft); cursor: pointer; }
+      .btn.primary { background: var(--accent); color: var(--on-accent); }
+      .btn.danger { background: transparent; color: var(--danger); box-shadow: inset 0 0 0 1.5px var(--danger); }
+      .btn.wide { width: 100%; padding: 14px; font-size: 16px; border-radius: 14px; }
+      .icon-btn { width: 36px; height: 36px; border: 0; border-radius: 11px; background: var(--soft); font-size: 16px; color: var(--muted); cursor: pointer; }
+      .icon-btn:disabled { opacity: 0.3; }
+      .chip-btn { border: 0; border-radius: 999px; padding: 9px 15px; font-size: 14px; font-weight: 700; background: var(--soft); color: var(--text); text-decoration: none; cursor: pointer; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .badge { display: inline-block; font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 6px; color: #fff; flex: none; vertical-align: 1.5px; }
+      .m-walk { background: var(--walk); }
+      .m-car { background: var(--car); }
+      .m-transit { background: var(--transit); }
+
+      /* ── trip ── */
+      .trip-summary { display: flex; align-items: baseline; gap: 10px; }
+      .trip-time { font-size: 30px; font-weight: 800; letter-spacing: -0.04em; color: var(--accent); }
+      .trip-meta { font-size: 15px; font-weight: 600; color: var(--muted); }
+      .trip-dest { margin: 2px 0 14px; font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .steps { list-style: none; margin: 18px 0 0; padding: 0; }
+      .step { display: flex; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--line); }
+      .step-icon { flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--soft); display: grid; place-items: center; font-size: 15px; color: var(--muted); }
+      .step-tag { flex: none; min-width: 58px; text-align: center; font-size: 12px; font-weight: 800; padding: 6px 6px; border-radius: 9px; background: var(--soft); color: var(--muted); }
+      .step.subway .step-tag { background: #e8f0ff; color: #2b5fd9; }
+      .step.bus .step-tag { background: #e6f6ec; color: #138a4b; }
+      .step-body { flex: 1; min-width: 0; }
+      .step-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .step-times { margin-top: 3px; font-size: 13.5px; font-weight: 800; color: var(--accent); }
+      .step-dist { flex: none; font-size: 13px; font-weight: 700; color: var(--muted); }
+      .step.current .step-icon, .step.current .step-tag { background: var(--accent); color: var(--on-accent); }
+      .step.current .step-title { color: var(--accent); }
+      .step.done { opacity: 0.4; }
+      .alt { display: block; width: 100%; text-align: left; border: 0; border-radius: 14px; padding: 12px 14px; margin-top: 8px; background: var(--soft); cursor: pointer; }
+      .alt.selected { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
+      .alt strong { font-size: 16px; }
+
+      /* ── glasses preview ── */
+      details.hud-card { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 14px; }
+      details.hud-card summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; }
+      details summary::-webkit-details-marker { display: none; }
+      details.hud-card summary::after { content: '펼치기'; color: var(--muted); font-size: 13px; font-weight: 600; }
+      details[open].hud-card summary::after { content: '접기'; }
+      .hud { position: relative; margin-top: 12px; background: var(--hud-bg); border-radius: 14px; aspect-ratio: 2 / 1; overflow: hidden; color: var(--hud-text); font-size: clamp(11px, 3.3vw, 15px); line-height: 1.35; }
+      .hud .a, .hud .b { position: absolute; white-space: pre-wrap; overflow: hidden; }
+      .hud canvas { position: absolute; left: 0; top: 0; width: 50%; height: 50%; display: none; }
+      .hud:not(.map) .a { left: 4%; right: 4%; top: 5%; color: var(--hud-dim); font-size: 0.9em; }
+      .hud:not(.map) .b { left: 4%; right: 4%; top: 20%; bottom: 4%; }
+      .hud.map canvas { display: block; }
+      .hud.map .a { display: none; }
+      .hud.map .b { left: 3%; right: 3%; top: 55%; bottom: 3%; }
+
+      /* ── settings ── */
+      dialog#settings { border: 0; padding: 0; margin: 0; width: 100%; max-width: none; height: 100%; max-height: none; background: var(--card); color: var(--text); }
+      .dlg-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: max(14px, env(safe-area-inset-top)) 12px 10px 20px; background: var(--card); font-size: 19px; font-weight: 800; }
+      .dlg-body { padding: 0 20px 40px; }
+      .field { margin-top: 26px; }
+      .field-title { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+      #key-state { font-size: 13px; font-weight: 700; color: var(--muted); }
+      #key-state.on, #odsay-state.on { color: #12a05c; }
+      #odsay-state { font-size: 13px; font-weight: 700; color: var(--muted); }
+      .inline { display: flex; gap: 8px; }
+      .inline input { flex: 1; min-width: 0; border: 0; border-radius: 12px; padding: 12px 14px; background: var(--soft); font-size: 15px; outline: none; }
+      .inline input:focus { box-shadow: inset 0 0 0 1.5px var(--accent); }
+      .usage-row { margin-bottom: 14px; }
+      .usage-top { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+      .usage-top b { font-weight: 800; }
+      .bar { height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+      .bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+      .bar.warn i { background: #f59f0a; }
+      .bar.full i { background: var(--danger); }
+      ol#log { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--muted); margin: 0; padding-left: 18px; max-height: 200px; overflow: auto; }
+
+      .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 20; transform: translate(-50%, 20px); background: rgba(25, 31, 40, 0.94); color: #fff; padding: 11px 18px; border-radius: 14px; font-size: 14px; font-weight: 600; opacity: 0; transition: 0.2s; pointer-events: none; max-width: calc(100% - 32px); }
+      .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    </style>
+  </head>
+  <body>
+    <div class="map-wrap">
+      <div id="map"></div>
+      <div class="map-fallback" id="map-fallback" hidden>지도를 불러오지 못했어요. 안내는 그대로 쓸 수 있어요.</div>
+
+      <div class="map-top">
+        <form id="search-form" class="searchbar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.6-3.6" /></svg>
+          <input id="query" type="search" enterkeyhint="search" placeholder="어디로 갈까요?" autocomplete="off" />
+          <button class="round-btn" id="settings-open" type="button" aria-label="설정">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></svg>
+          </button>
+        </form>
+        <div class="banner" id="banner" hidden>
+          <div class="banner-glyph" id="banner-glyph"></div>
+          <div>
+            <div class="banner-main" id="banner-main"></div>
+            <div class="banner-sub" id="banner-sub"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="map-chips">
+        <span class="chip" id="chip-glasses">안경 대기</span>
+        <span class="chip" id="chip-gps">GPS 없음</span>
+      </div>
+      <button class="fab on" id="recenter" type="button" aria-label="내 위치로">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="1.6" fill="currentColor" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+      </button>
+    </div>
+
+    <main class="sheet">
+      <div class="grabber"></div>
+
+      <section id="idle">
+        <div class="seg" role="radiogroup" aria-label="이동 수단">
+          <input type="radio" name="mode" id="mode-walk" value="walk" checked />
+          <label for="mode-walk"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.5" r="1.8" fill="currentColor" stroke="none" /><path d="M9 21l2.5-6-2-3 1-4.5 3.5 1 2 3.5 3 1M10.5 7.5L7 9.5v3.5M13.5 15.5l2 5.5" /></svg>도보</label>
+          <input type="radio" name="mode" id="mode-car" value="car" />
+          <label for="mode-car"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-4l2-5.5h12l2 5.5v4M3 16h18v2H3z" /><circle cx="7.5" cy="13" r="0.9" fill="currentColor" /><circle cx="16.5" cy="13" r="0.9" fill="currentColor" /></svg>자동차</label>
+          <input type="radio" name="mode" id="mode-transit" value="transit" />
+          <label for="mode-transit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="14" rx="3" /><path d="M5 11h14M8 20.5l1.5-3M16 20.5l-1.5-3" /><circle cx="8.8" cy="14.3" r="0.9" fill="currentColor" /><circle cx="15.2" cy="14.3" r="0.9" fill="currentColor" /></svg>대중교통</label>
+        </div>
+        <div class="muted" id="search-msg"></div>
+
+        <div id="results-wrap" hidden>
+          <div class="section-head"><span>검색 결과<span class="count" id="results-count"></span></span><button class="text-btn" id="results-clear" type="button">지우기</button></div>
+          <ul class="places" id="results"></ul>
+        </div>
+
+        <div class="section-head"><span>즐겨찾기<span class="count" id="fav-count"></span></span></div>
+        <ul class="places" id="favorites"></ul>
+      </section>
+
+      <section id="trip-panel" hidden>
+        <div class="trip-summary"><span class="trip-time" id="trip-time"></span><span class="trip-meta" id="trip-meta"></span></div>
+        <div class="trip-dest"><span class="badge" id="trip-mode"></span> <span id="trip-dest"></span></div>
+        <div class="row" id="trip-links"></div>
+        <div id="trip-extra"></div>
+        <div style="margin-top: 20px"><button class="btn danger wide" id="trip-end" type="button">안내 끝내기</button></div>
+      </section>
+
+      <details class="hud-card">
+        <summary>안경에 보이는 화면</summary>
+        <div class="hud" id="hud">
+          <canvas id="hud-map" width="288" height="144"></canvas>
+          <canvas id="hud-turn" width="288" height="144" style="left: 50%"></canvas>
+          <div class="a" id="hud-a"></div>
+          <div class="b" id="hud-b"></div>
+        </div>
+        <p class="muted" style="margin: 8px 2px 0">안경 조작: 탭 = 출발·다음 단계, 위아래 = 고르기, 두 번 탭 = 안내 끝내기</p>
+      </details>
+    </main>
+
+    <dialog id="settings">
+      <div class="dlg-head">
+        <span>설정</span>
+        <button class="round-btn" id="settings-close" type="button" aria-label="닫기">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <div class="dlg-body">
+        <div class="field">
+          <div class="field-title">지도 <span class="muted" id="map-provider">불러오는 중</span></div>
+          <p class="muted" style="margin: 0">TMAP 앱 키가 있으면 TMAP 지도를 쓰고, 없거나 TMAP 지도가 열리지 않으면 무료 지도로 대신해요.</p>
+        </div>
+        <div class="field">
+          <div class="field-title">안경 지도 모양</div>
+          <div class="seg two" role="radiogroup" aria-label="안경 지도 모양">
+            <input type="radio" name="hud-view" id="hud-tilt" value="tilt" checked /><label for="hud-tilt">3D 기울임</label>
+            <input type="radio" name="hud-view" id="hud-top" value="top" /><label for="hud-top">위에서 보기</label>
+          </div>
+          <p class="muted" style="margin: 10px 0 0">3D 기울임은 앞쪽 길이 멀리까지 보이고, 위에서 보기는 주변 골목 모양이 정확하게 보여요.</p>
+        </div>
+        <div class="field">
+          <label class="switch-row"><span>안내 중 화면 켜 두기</span><input type="checkbox" id="keep-awake" /></label>
+          <p class="muted" style="margin: 8px 0 0">폰 화면이 꺼지면 위치가 끊기는 폰에서 쓰는 임시 방법이에요. 화면이 켜진 채라 배터리를 더 쓰고, 주머니에서 눌릴 수 있어요.</p>
+        </div>
+        <div class="field">
+          <div class="field-title">TMAP 앱 키 <span id="key-state">없음</span></div>
+          <div class="inline">
+            <input id="key" type="password" autocomplete="off" placeholder="SK open API 앱 키 붙여 넣기" />
+            <button class="btn primary" id="key-save" type="button">저장</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-title">ODsay 키 <span id="odsay-state">없음</span></div>
+          <div class="inline">
+            <input id="odsay-key" type="password" autocomplete="off" placeholder="ODsay API 키 붙여 넣기" />
+            <button class="btn primary" id="odsay-save" type="button">저장</button>
+          </div>
+          <div class="field-title" style="margin-top: 16px">다리 페이지 <span class="muted" id="odsay-bridge-state">없음 (직접 연결)</span></div>
+          <div class="inline">
+            <input id="odsay-bridge" type="url" autocomplete="off" placeholder="https://아이디.github.io/odsay-bridge/" />
+            <button class="btn" id="odsay-bridge-save" type="button">저장</button>
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <button class="chip-btn" id="odsay-test" type="button">ODsay 연결 시험</button>
+          </div>
+          <p class="muted" style="margin-top: 10px">빠른 환승 칸, 출구 번호, 방면을 받는 데 써요. 연결 시험은 하루 30번 중 1번을 써요. 결과는 맨 아래 기록에 남아요.</p>
+        </div>
+        <div class="field">
+          <div class="field-title">서울 지하철 실시간 키 <span id="subway-state" class="muted">없음 (시험용 키 사용)</span></div>
+          <div class="inline">
+            <input id="subway-key" type="password" autocomplete="off" placeholder="서울 열린데이터광장 실시간 지하철 인증키" />
+            <button class="btn primary" id="subway-save" type="button">저장</button>
+          </div>
+          <div class="row" style="margin-top: 10px">
+            <button class="chip-btn" id="subway-test" type="button">지하철 실시간 연결 시험</button>
+          </div>
+          <p class="muted" style="margin-top: 10px">키가 없어도 연결 시험은 돼요 (서울시가 공개한 시험용 키로 5줄만 받아요). 결과는 맨 아래 기록에 남아요.</p>
+        </div>
+        <div class="field">
+          <div class="field-title">버스 실시간 키 <span id="bus-state" class="muted">없음</span></div>
+          <div class="inline">
+            <input id="bus-key" type="password" autocomplete="off" placeholder="공공데이터포털 일반 인증키" />
+            <button class="btn primary" id="bus-save" type="button">저장</button>
+          </div>
+          <p class="muted" style="margin-top: 10px">서울·경기 버스가 정류장에 몇 분 뒤 오는지 받는 데 써요. 정류장으로 걸어가는 동안과 기다리는 동안 보여 줘요.</p>
+        </div>
+        <div class="field">
+          <div class="field-title">오늘 사용량 <span class="muted" id="usage-day"></span></div>
+          <div id="usage"></div>
+          <p class="muted">이 앱에서 부른 횟수만 세요. 무료 한도를 넘으면 그날은 막히고 요금은 나가지 않아요. 정확한 수치는 SK open API 대시보드에서 볼 수 있어요.</p>
+        </div>
+        <div class="field">
+          <div class="field-title">화면 시험</div>
+          <div class="row">
+            <button class="chip-btn" id="demo-walk" type="button">도보 데모</button>
+            <button class="chip-btn" id="demo-detour" type="button">경로 이탈 데모</button>
+            <button class="chip-btn" id="demo-transit" type="button">대중교통 데모</button>
+            <button class="chip-btn" id="demo-loc" type="button">현재 위치 확인</button>
+          </div>
+          <p class="muted" style="margin-top: 10px">데모는 가짜 좌표로 움직여요. 앱 키가 없어도 되고 사용량도 늘지 않아요.</p>
+        </div>
+        <div class="field">
+          <div class="field-title">기록</div>
+          <ol id="log"></ol>
+        </div>
+      </div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
